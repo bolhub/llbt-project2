@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:security="http://www.springframework.org/schema/security"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd">
+
+
+    <security:http auto-config="true">
+        <!-- 不拦截login.jsp -->
+        <security:intercept-url pattern="/loginCheck.html" access="permitAll()"/>
+        <!-- 仅拦截到resource下面的内容，具备access对应的权限的 -->
+        <security:intercept-url pattern="/resume.html" access="hasRole('ROLE_ADMIN')"/>
+        <!-- 设置登录过滤器 -->
+        <security:custom-filter ref="authenticationProcessingFilter" before="FORM_LOGIN_FILTER"/>
+        <!-- 登录表单设置 -->
+        <security:form-login login-page="/index.html"
+                             login-processing-url="/loginCheck.html"
+                             default-target-url="/loginCheck.html"
+                             authentication-failure-url="/index.html?error=true"
+                             authentication-success-handler-ref="loginSuccessHandler"
+                            username-parameter="userName"
+                            password-parameter="password"/>
+        <!-- 登出操作后跳转到该页面 -->
+        <security:logout logout-success-url="/index.html"
+                         delete-cookies="JSESSIONID"/>
+        <security:remember-me/>
+
+        <!-- SESSION超时后跳转到该页面 -->
+        <security:session-management invalid-session-url="/index.html"></security:session-management>
+    </security:http>
+    <security:authentication-manager alias="authenticationManager" erase-credentials="false">
+        <security:authentication-provider>
+            <!-- 直接使用SQL语句查询登录账号对应权限，
+                users-by-username-query:查询登录用户是否存在
+                authorities-by-username-query:查询登录用户权限（登录用户可以不属于任何组,从t_user_role表中获取权限）
+                group-authorities-by-username-query:查询登录用户所在组的权限
+            -->
+            <security:jdbc-user-service data-source-ref="dataSource"
+                                        group-authorities-by-username-query=" SELECT f.id,f.functionname,r.role FROM t_function AS f
+                                        LEFT OUTER JOIN t_function_role AS fr ON (f.id = fr.functionid)
+                                        LEFT OUTER JOIN t_role AS r ON (r.id = fr.roleid)
+                                        LEFT OUTER JOIN t_function_user AS fu on (f.id = fu.function_id)
+                                        LEFT OUTER JOIN t_user ON (t_user.user_id = fu.user_id) WHERE t_user.user_name = ? "
+                                        users-by-username-query="SELECT t_user.user_name AS username, t_user.password AS password, 'true' AS enabled FROM t_user WHERE t_user.user_name = ?"
+                                        authorities-by-username-query=" SELECT t_user.user_name AS username, role.role AS AUTHORIZATION FROM t_user
+                                        LEFT OUTER JOIN t_user_role AS userrole ON (t_user.user_id = userrole.user_id)
+                                        LEFT OUTER JOIN t_role AS role ON (userrole.role_id = role.id) WHERE t_user.user_name = ? "/>
+        </security:authentication-provider>
+    </security:authentication-manager>
+
+    <!-- 自定义消息 -->
+    <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+        <property name="basename" value="org/springframework/security/messages"/>
+    </bean>
+
+    <!-- 定制登录过滤器 -->
+    <bean id="loginSuccessHandler" class="com.smart.security.LoginSuccessHandler">
+        <property name="defaultTargetUrl">
+            <!-- 登录成功后转发到该页面 -->
+            <value>/loginCheck.html</value>
+        </property>
+    </bean>
+    <bean id="authenticationProcessingFilter" class="com.smart.security.LoginUsernamePasswordAuthenticationFilter">
+        <property name="authenticationSuccessHandler" ref="loginSuccessHandler"></property>
+        <property name="authenticationFailureHandler" ref="authenticationFailureHandler"></property>
+        <property name="authenticationManager" ref="authenticationManager"></property>
+    </bean>
+    <bean id="authenticationFailureHandler" class="org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler">
+        <property name="defaultFailureUrl">
+            <value>/index.html?error=true</value>
+        </property>
+    </bean>
+
+    <bean id="csrFilter" class="org.springframework.security.web.csrf.CsrfFilter">
+        <constructor-arg>
+            <bean class="org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository"/>
+        </constructor-arg>
+    </bean>
+    <bean id="requestDataValueProcessor" class="org.springframework.security.web.servlet.support.csrf.CsrfRequestDataValueProcessor"/>
+    <!-- auto-config = true 则使用form-login.如果不使用该属性 则默认为http-basic(没有session). -->
+    <!--<security:http auto-config="true">
+        &lt;!&ndash; intercept-url:拦截器，可以设定哪些路径需要哪些权限来访问。filters=none 不使用过滤，也可以理解为忽略 &ndash;&gt;
+        <security:intercept-url pattern="/loginCheck.html" access="hasRole('ROLE_USER')"/>
+
+        <security:form-login
+            login-page="/loginCheck.html"
+            default-target-url="/index.html"
+            authentication-failure-url="/index.html"
+            login-processing-url="/j_spring_security_check"
+            username-parameter="username"
+            password-parameter="password"/>
+
+        &lt;!&ndash; logout-success-url:成功注销后跳转到的页面 &ndash;&gt;
+        <security:logout
+            logout-url="/j_spring_security_logout"
+            logout-success-url="/login.html"
+            invalidate-session="true"/>
+
+        <security:http-basic/>
+
+        &lt;!&ndash; enable csrf protection &ndash;&gt;
+        <security:csrf/>
+    </security:http>
+
+    <security:authentication-manager>
+        <security:authentication-provider>
+            <security:user-service>
+                <security:user name="admin" authorities="ROLE_USER" password="123456"/>
+            </security:user-service>
+        </security:authentication-provider>
+    </security:authentication-manager>-->
+</beans>

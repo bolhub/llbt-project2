@@ -1,0 +1,19 @@
+
+.btn-bt{
+    padding: 0px 300px;
+    width:100%;
+    font-size: 35px;
+    line-height: 3;
+    border-radius: 6px;
+    margin: 10px 10px;
+}
+
+.btn-bt a{
+    color: #9d9d9d;
+    background-color: transparent;
+}
+
+.btn-bt a:hover,.btn-bt a:focus{
+    text-decoration: none;
+    color: #fff;
+}
